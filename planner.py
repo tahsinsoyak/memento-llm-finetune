@@ -22,7 +22,7 @@ class Planner:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
                 max_tokens=1000

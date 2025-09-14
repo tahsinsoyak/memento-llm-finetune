@@ -4,18 +4,14 @@ from dotenv import load_dotenv
 from agent import Agent
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(override=True)
+
 
 def main():
     """Main function to initialize and run the agent."""
     
     # Check for OpenAI API key
     api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        print("Error: OPENAI_API_KEY environment variable not set.")
-        print("Please create a .env file with your OpenAI API key:")
-        print("OPENAI_API_KEY=your_key_here")
-        return
     
     print("Initializing Memento LLM Agent...")
     
