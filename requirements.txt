@@ -1,0 +1,15 @@
+# AI/ML
+openai>=1.0.0
+
+# Vector Database
+chromadb>=0.4.0
+
+# Search and web scraping
+duckduckgo-search>=4.0.0
+requests>=2.31.0
+
+# Document processing
+markitdown>=0.0.1a2
+
+# Environment and utilities
+python-dotenv>=1.0.0
