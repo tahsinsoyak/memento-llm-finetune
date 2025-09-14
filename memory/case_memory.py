@@ -96,13 +96,18 @@ class CaseMemory:
     def _retrieve_with_chromadb(self, task_description: str, top_k: int) -> List[Dict[str, Any]]:
         """Retrieve cases using ChromaDB."""
         try:
+            # Check if collection has any cases
+            collection_count = self.collection.count()
+            if collection_count == 0:
+                return []
+            
             # Get embedding for the task
             task_embedding = self._get_embedding(task_description)
             
             # Query the collection
             results = self.collection.query(
                 query_embeddings=[task_embedding],
-                n_results=min(top_k, self.collection.count()),
+                n_results=min(top_k, collection_count),
                 include=['metadatas', 'documents', 'distances']
             )
             

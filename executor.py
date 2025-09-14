@@ -35,11 +35,13 @@ class Executor:
         if self._is_search_step(step_lower):
             query = self._extract_search_query(step_instruction)
             if query:
-                if "news" in step_lower or "recent" in step_lower or "current" in step_lower:
+                # Determine search type based on keywords
+                if any(keyword in step_lower for keyword in ["news", "recent", "latest", "breaking"]):
                     result = self.search_tool.search_news(query)
+                    self.tool_memory.append(f"NEWS_SEARCH[{query}] -> {len(result.split('News ')) - 1} results")
                 else:
                     result = self.search_tool.search(query)
-                self.tool_memory.append(f"SEARCH[{query}] -> Found {len(result.split('Result')) - 1} results")
+                    self.tool_memory.append(f"WEB_SEARCH[{query}] -> {len(result.split('Result ')) - 1} results")
             else:
                 result = "Error: Could not extract search query from instruction"
                 
@@ -60,16 +62,18 @@ class Executor:
             else:
                 result = "Error: Could not extract target URL or file from instruction"
                 
-        elif self._is_analysis_step(step_lower):
-            # For analysis, reasoning, or synthesis steps, use the LLM
-            analysis_prompt = self._create_analysis_prompt(step_instruction)
-            result = self._call_openai(analysis_prompt)
-            self.tool_memory.append(f"ANALYSIS[{step_instruction[:30]}...] -> Generated analysis")
-            
         else:
-            # Default: Use LLM for general reasoning
-            result = self._call_openai(step_instruction)
-            self.tool_memory.append(f"LLM[{step_instruction[:30]}...] -> {result[:50]}...")
+            # For non-tool steps, use LLM but provide context from recent tool results
+            context_info = ""
+            if self.tool_memory:
+                # Add context from recent searches
+                recent_searches = [tm for tm in self.tool_memory[-3:] if "SEARCH" in tm]
+                if recent_searches:
+                    context_info = f"\nRecent search context: {'; '.join(recent_searches)}"
+            
+            enhanced_prompt = f"{step_instruction}{context_info}"
+            result = self._call_openai(enhanced_prompt)
+            self.tool_memory.append(f"LLM[{step_instruction[:30]}...] -> Generated response")
         
         return result
 
@@ -144,31 +148,35 @@ class Executor:
         """Extract search query from instruction."""
         # Try different patterns to extract the query
         patterns = [
-            r'search\s+for\s+"([^"]+)"',  # search for "query"
-            r'search\s+for\s+(.+?)(?:\.|$)',  # search for query
-            r'find\s+information\s+about\s+(.+?)(?:\.|$)',  # find information about query
+            r'search\s+(?:for\s+)?"([^"]+)"',  # search for "query"
+            r'search\s+(?:for\s+)?(.+?)(?:\.|$)',  # search for query
+            r'find\s+information\s+(?:about\s+)?(.+?)(?:\.|$)',  # find information about query
             r'research\s+(.+?)(?:\.|$)',  # research query
             r'look\s+up\s+(.+?)(?:\.|$)',  # look up query
         ]
         
+        instruction_clean = instruction.strip()
+        
         for pattern in patterns:
-            match = re.search(pattern, instruction, re.IGNORECASE)
+            match = re.search(pattern, instruction_clean, re.IGNORECASE)
             if match:
-                return match.group(1).strip()
+                query = match.group(1).strip()
+                # Clean up the query - remove redundant phrases
+                query = re.sub(r'^information about:\s*', '', query, flags=re.IGNORECASE)
+                query = re.sub(r'\s+', ' ', query)  # normalize whitespace
+                query = query.strip('.,!?')  # remove trailing punctuation
+                if query and len(query) > 2:  # valid query
+                    return query
         
-        # Fallback: return everything after common search terms
-        search_terms = ['search for', 'find', 'research', 'look up']
-        instruction_lower = instruction.lower()
+        # Fallback: if instruction looks like a direct query, use it
+        # Remove common instruction words
+        fallback_query = re.sub(r'^(search|find|look|research|get|fetch)\s+(?:for\s+|up\s+|about\s+|information\s+about\s+)?', 
+                              '', instruction_clean, flags=re.IGNORECASE)
+        fallback_query = fallback_query.strip('.,!?')
         
-        for term in search_terms:
-            if term in instruction_lower:
-                query = instruction[instruction_lower.find(term) + len(term):].strip()
-                # Remove common endings
-                query = re.sub(r'\s+and\s+.+', '', query)
-                query = re.sub(r'\s+to\s+.+', '', query)  
-                query = re.sub(r'\s+in\s+order\s+to\s+.+', '', query)
-                return query.strip(' ."')
-        
+        if fallback_query and len(fallback_query) > 2:
+            return fallback_query
+            
         return ""
 
     def _extract_target(self, instruction: str) -> str:

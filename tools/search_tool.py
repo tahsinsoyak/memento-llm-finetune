@@ -1,6 +1,17 @@
 # tools/search_tool.py
 from typing import List, Dict, Optional
-from duckduckgo_search import DDGS
+
+try:
+    from ddgs import DDGS
+    DDGS_AVAILABLE = True
+except ImportError:
+    try:
+        from duckduckgo_search import DDGS
+        DDGS_AVAILABLE = True
+        print("Warning: Using deprecated duckduckgo_search. Consider upgrading to ddgs: pip install ddgs")
+    except ImportError:
+        DDGS_AVAILABLE = False
+        print("Error: Neither ddgs nor duckduckgo_search is available. Install with: pip install ddgs")
 
 class SearchTool:
     """Uses DuckDuckGo free search API to perform web searches."""
@@ -12,6 +23,8 @@ class SearchTool:
         :param max_results: Maximum number of search results to return
         """
         self.max_results = max_results
+        if not DDGS_AVAILABLE:
+            raise ImportError("DDGS not available. Install with: pip install ddgs")
         self.ddgs = DDGS()
     
     def search(self, query: str, max_results: Optional[int] = None) -> str:

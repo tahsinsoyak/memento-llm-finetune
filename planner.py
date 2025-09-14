@@ -36,7 +36,7 @@ class Planner:
 
     def _compose_prompt(self, task, cases):
         # Construct a prompt string for the LLM
-        prompt = f"""You are an expert research planner. Break down complex tasks into clear, actionable steps.
+        prompt = f"""You are an expert task planner for an AI agent with search and document processing tools.
 
 Task: {task}
 """
@@ -46,12 +46,28 @@ Task: {task}
                 prompt += f"- {c}\n"
         
         prompt += """
-Plan the steps to solve this task. Each step should be:
-1. Specific and actionable
-2. Use available tools (search, document processing)
-3. Build towards answering the main question
+Create a concise, actionable plan with 2-4 steps that uses the available tools:
 
-Format your response as a numbered list of steps."""
+Available Tools:
+- search: Search the web for current information
+- search_news: Search for recent news articles
+- document: Process documents or web pages
+
+Plan Requirements:
+1. Each step must be specific and tool-focused
+2. Use "search for [specific query]" for web searches
+3. Use "search news for [specific query]" for recent news
+4. Keep steps minimal and focused on the main question
+5. Don't create generic "analysis" steps - let the search results speak for themselves
+
+Format as a simple numbered list (2-4 steps maximum).
+
+Example for "What is the latest iPhone price?":
+1. Search for "iPhone 15 price official Apple store 2024"
+2. Search news for "iPhone price announcement latest"
+3. Compare prices from official sources
+
+Now create your plan:"""
         return prompt
 
     def _parse_plan(self, plan_text):
